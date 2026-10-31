@@ -23,9 +23,71 @@ noise_scale = 0.050
 noise_octaves = 5
 
 river_width = 4.0
+valley_width = 13.0
 river_level = 0.0
 river_depth = 1.5
 
+river_winding = 13.0
+river_frequency = 0.075
+
+random_seed = 42
+
+# Noise generation
+random.seed(random_seed)
+
+_noise_cache = {}
+
+
+def smooth(t):
+    return t * t * (3.0 - 2.0 * t)
+
+
+def noise2d(x, y):
+    ix = math.floor(x)
+    iy = math.floor(y)
+
+    fx = x - ix
+    fy = y - iy
+
+    fx = smooth(fx)
+    fy = smooth(fy)
+
+    def value(px, py):
+        key = (px, py)
+
+        if key not in _noise_cache:
+            _noise_cache[key] = random.uniform(-1.0, 1.0)
+
+        return _noise_cache[key]
+    a = value(ix, iy)
+    b = value(ix + 1, iy)
+    c = value(ix, iy + 1)
+    d = value(ix + 1, iy + 1)
+
+    bottom = a + (b - a) * fx
+    top = c + (d - c) * fx
+
+    return bottom + (top - bottom) * fy
+
+
+def fractal_noise(x, y):
+
+    total = 0.0
+    amplitude = 1.0
+    frequency = 1.0
+    amplitude_sum = 0.0
+
+    for octave in range(noise_octaves):
+        total += noise2d(x * frequency, y * frequency) * amplitude
+
+        amplitude_sum += amplitude
+        amplitude *= 0.5
+        frequency *= 2.0
+
+    return total / amplitude_sum
+
+
+# Mesh creation
 def create_mesh(name, vertices, faces):
     points = om.MPointArray()
 
@@ -52,6 +114,7 @@ def create_mesh(name, vertices, faces):
     return transform_fn.fullPathName()
 
 
+# Terrain building
 def create_terrain():
     vertices = []
     faces = []
