@@ -87,6 +87,57 @@ def fractal_noise(x, y):
     return total / amplitude_sum
 
 
+# River path
+def river_center(y):
+
+    return (
+        river_winding * math.sin(y * river_frequency)
+        + river_winding * 0.45 * math.sin(y * river_frequency * 2.3 + 1.2))
+
+
+# Terrain height
+def terrain_height(x, y):
+    height = fractal_noise(
+        x * noise_scale,
+        y * noise_scale
+    ) * terrain_height
+    
+    # rolling hills
+    height += 1.5 * math.sin(x * 0.08) * math.cos(y * 0.06)
+    
+    # distance from center
+    distance = abs(x - river_center(y))
+
+    # smoothing edges
+    if distance < valley_width:
+        t = distance / valley_width
+        influence = 1.0 - smooth(t)
+    else:
+        influence = 0.0
+
+    if distance < river_width:
+        target_height = river_level - river_depth
+    else:
+        bank_t = min(
+            1.0,
+            (distance - river_width)
+            / max(0.001, valley_width - river_width)
+        )
+
+        target_height = (
+            river_level - river_depth
+            + bank_t * (river_depth + 1.0)
+        )
+
+    # blending hills and river
+    height = (
+        height * (1.0 - influence)
+        + target_height * influence
+    )
+
+    return height
+
+
 # Mesh creation
 def create_mesh(name, vertices, faces):
     points = om.MPointArray()
@@ -145,3 +196,38 @@ def create_terrain():
     cmds.polySoftEdge(terrain, angle=180, constructionHistory=False)
 
     return terrain
+
+
+# Water build
+def create_river():
+    vertices = []
+    faces = []
+
+    half_size = terrain_size / 2.0
+
+    segments = grid_res * 2
+
+    for i in range(segments + 1):
+        y = -half_size + (
+            terrain_size * i / segments
+        )
+
+        center_x = river_center(y)
+
+        vertices.append((center_x - river_width, y, river_level))
+
+        vertices.append((center_x + river_width, y, river_level))
+
+    for i in range(segments):
+        a = i * 2
+        b = a + 1
+        c = a + 2
+        d = a + 3
+
+        faces.append((a, c, d, b))
+
+    water = create_mesh("River_Water", vertices, faces)
+
+    cmds.polySoftEdge(water, angle=180, constructionHistory=False)
+
+    return water
