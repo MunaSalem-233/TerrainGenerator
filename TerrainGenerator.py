@@ -231,3 +231,81 @@ def create_river():
     cmds.polySoftEdge(water, angle=180, constructionHistory=False)
 
     return water
+
+
+# Materials
+def create_material(name, color, roughness=0.8):
+    shader = cmds.shadingNode("lambert", asShader=True, name=name)
+
+    cmds.setAttr(
+        shader + ".color",
+        color[0],
+        color[1],
+        color[2],
+        type="double3"
+    )
+
+    shading_grp = cmds.sets(
+        renderable=True,
+        noSurfaceShader=True,
+        empty=True,
+        name=name + "_SG"
+    )
+
+    cmds.connectAttr(
+        shader + ".outColor",
+        shading_grp + ".surfaceShader",
+        force=True
+    )
+
+    cmds.sets(
+        shading_grp,
+        edit=True,
+        forceElement=True
+    )
+
+    return shading_grp
+
+
+# Generate scene
+def generate_terrain():
+    if cmds.objExists("Procedural_Terrain"):
+        cmds.delete("Procedural_Terrain")
+
+    group = cmds.group(
+        empty=True,
+        name="Procedural_Terrain"
+    )
+
+    terrain = create_terrain()
+    river = create_river()
+
+    cmds.parent(terrain, group)
+    cmds.parent(river, group)
+
+    terrain_mat = create_material(
+        "Terrain_G",
+        (0.20, 0.34, 0.14)
+    )
+
+    water_mat = create_material(
+        "River_B",
+        (0.035, 0.30, 0.55),
+        roughness=0.25
+    )
+
+    cmds.sets(
+        terrain,
+        edit=True,
+        forceElement=terrain_mat
+    )
+
+    cmds.sets(
+            terrain,
+            edit=True,
+            forceElement=water_mat
+        )
+
+    cmds.select(terrain, replace=True)
+
+    print("Procedural Terrain Generated!")
